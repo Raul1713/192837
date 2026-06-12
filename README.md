@@ -1,4 +1,21 @@
-# Royal Pouch v5.3
+# Royal Pouch v5.4 PWA Install Fix
+
+This version adds/fixes:
+- In-app **Install App** button using the browser PWA prompt.
+- Service worker registration scope.
+- Updated manifest `start_url`, `scope`, app id and description.
+- Service worker cache refresh so GitHub Pages picks up the new build.
+
+Upload all files to the root of your GitHub Pages repository.
+
+Important after upload:
+1. Wait 2–5 minutes for GitHub Pages.
+2. On Android Chrome, open the site.
+3. Tap the app once or refresh.
+4. The **Install App** button should appear when Chrome says the PWA is installable.
+5. If it still does not show, tap Chrome ⋮ and check for **Install app**.
+
+# Royal Pouch v5.4 PWA Install Fix
 
 GitHub Pages/PWA-ready build.
 

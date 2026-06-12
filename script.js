@@ -5,6 +5,21 @@
 */
 const STORAGE_KEY = 'royalPouchSave_v1';
 
+// PWA install prompt support
+let deferredInstallPrompt = null;
+let canInstallPwa = false;
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  canInstallPwa = true;
+  updateInstallButton();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  canInstallPwa = false;
+  updateInstallButton();
+});
+
 const DEFAULT_DATA = {
   players: { his: '', hers: '' },
   coins: { his: 1000, hers: 1000 },
@@ -155,8 +170,30 @@ function header(sub=''){
 
 function init(){
   migrateDefaults();
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(()=>{});
+  }
   if(!state.players.his || !state.players.hers) showNameScreen(); else showHome();
+}
+
+
+function installButtonMarkup(){
+  return `<button id="installAppBtn" class="install-app-btn" onclick="installApp()" hidden>📲 Install App</button>`;
+}
+function updateInstallButton(){
+  const btn = document.getElementById('installAppBtn');
+  if(btn) btn.hidden = !canInstallPwa;
+}
+async function installApp(){
+  if(!deferredInstallPrompt){
+    alert('Install is not ready yet. On Android Chrome, tap the three-dot menu and choose Install app or Add to Home screen.');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  canInstallPwa = false;
+  updateInstallButton();
 }
 
 function migrateDefaults(){
@@ -177,13 +214,14 @@ function migrateDefaults(){
 function showNameScreen(){
   currentScreen='names';
   app().innerHTML = `<main class="screen">
-    <div class="hero"><h2>Set the players</h2><p>Enter two names to personalise the dashboard, coins and challenge paths.</p></div>
+    <div class="hero"><h2>Set the players</h2><p>Enter two names to personalise the dashboard, coins and challenge paths.</p>${installButtonMarkup()}</div>
     <div class="form">
       <input class="input" id="hisName" placeholder="His name" value="${escapeHtml(state.players.his)}">
       <input class="input" id="hersName" placeholder="Her name" value="${escapeHtml(state.players.hers)}">
       <button class="primary" onclick="saveNames()">Start</button>
     </div>
   </main>`;
+  updateInstallButton();
 }
 function saveNames(){
   state.players.his = $('#hisName').value.trim() || 'His';
@@ -192,7 +230,7 @@ function saveNames(){
 function showHome(){
   currentScreen='home';
   app().innerHTML = `<main class="screen">${header('Home dashboard')}
-    <section class="hero"><h2>Tonight's dashboard</h2><p>${state.players.his}: ${state.coins.his} coins · ${state.players.hers}: ${state.coins.hers} coins</p></section>
+    <section class="hero"><h2>Tonight's dashboard</h2><p>${state.players.his}: ${state.coins.his} coins · ${state.players.hers}: ${state.coins.hers} coins</p>${installButtonMarkup()}</section>
     <section class="grid">
       ${card('📜','Rules','View rules','showRules()', 'wide')}
       ${card('🧔','His','4 Categories','showHis()')}
@@ -202,6 +240,7 @@ function showHome(){
       ${card('📋','Funishments','Editable consequences','showFunishments()')}
       ${card('📈','Progress','Stats and challenge history','showProgress()')}
     </section>${nav('home')}</main>`;
+  updateInstallButton();
 }
 function card(icon,title,desc,onclick,extra=''){
   return `<button class="dash-card ${extra}" onclick="${onclick}"><div class="icon">${icon}</div><h3>${title}</h3>${desc ? `<p>${desc}</p>` : ''}</button>`;
