@@ -223,3 +223,10 @@ select option{background:#0d0d10!important;color:#f4f4f5!important;}
   color: var(--text) !important;
 }
 /* Brand logo stays Crowned Ace black/silver; feature emojis stay coloured for easier navigation. */
+
+/* v5.5 dice roller */
+.dice-panel{display:flex;flex-direction:column;gap:18px;margin-top:14px}
+.dice-wrap{display:flex;justify-content:center;gap:18px;align-items:center;padding:18px 0}
+.dice-cube{width:96px;height:96px;border-radius:24px;display:grid;place-items:center;font-size:58px;background:linear-gradient(145deg,#181818,#090909);border:1px solid rgba(230,230,230,.28);box-shadow:0 0 18px rgba(255,255,255,.07), inset 0 0 18px rgba(255,255,255,.04)}
+.dice-result{text-align:center}
+@media (max-width:420px){.dice-cube{width:82px;height:82px;font-size:50px}}

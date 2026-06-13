@@ -1,12 +1,11 @@
-# Royal Pouch v5.4
+# Royal Pouch v5.5 - Dice Roller
 
-GitHub Pages ready PWA build.
+GitHub Pages ready PWA.
 
-Changes in v5.4:
-- Removed Funishments from the main app dashboard.
-- Added a Randomizer screen.
-- Randomizer can draw from His, Hers, or both.
-- Randomizer does not affect linear challenge progress.
-- Randomized challenge can be read aloud, timed, rerolled, and completed for coins.
+Updated in this version:
+- Main Randomizer is now a standalone two-dice roller.
+- Dice options are editable in the hidden editor.
+- His and Hers screens now have their own Random challenge picker cards.
+- Funishments remain removed from the main app.
 
 Upload all files to your GitHub Pages repository.

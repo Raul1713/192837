@@ -99,6 +99,10 @@ const DEFAULT_DATA = {
   },
   inventory: { his: [], hers: [] },
   activePowerUps: { his: [], hers: [] },
+  dice: {
+    left: ['Kiss', 'Whisper', 'Compliment', 'Serve', 'Tease', 'Choose'],
+    right: ['30 seconds', 'Neck', 'Hands', 'One rule', 'Two minutes', 'Player choice']
+  },
   randomizerHistory: []
 };
 
@@ -216,6 +220,7 @@ function showHis(){
     ${categoryCard('🟡','Medium',"openCategory('his','medium')")}
     ${categoryCard('🟠','Hard',"openCategory('his','hard')")}
     ${categoryCard('🔴','Extra Hard',"openCategory('his','extraHard')")}
+    ${categoryCard('🎲','Random His',"showSideRandomizer('his')")}
     ${categoryCard('🎒','Inventory',"showPowerUps('inventory','his','showHis')")}
     ${categoryCard('🏪','Shop',"showPowerUps('shop','his','showHis')")}
   </section>${nav('play')}</main>`;
@@ -232,6 +237,7 @@ function showHers(){
     ${categoryCard('👠','Tease',"openCategory('hers','tease')")}
     ${categoryCard('👑','Queen',"openCategory('hers','queen')")}
     ${categoryCard('🌶️','Spicy',"openCategory('hers','spicy')")}
+    ${categoryCard('🎲','Random Hers',"showSideRandomizer('hers')")}
     ${categoryCard('🎒','Inventory',"showPowerUps('inventory','hers','showHers')")}
     ${categoryCard('🏪','Shop',"showPowerUps('shop','hers','showHers')")}
   </section>${nav('play')}</main>`;
@@ -545,13 +551,61 @@ function readPowerUp(tab,side,index){
 }
 function showRandomizer(){
   currentScreen='randomizer';
-  app().innerHTML=`<main class="screen">${header('Randomizer')}${backBtn()}
-    <section class="hero"><h2>Quick random draw</h2><p>Pick a random challenge without changing the linear paths.</p></section>
-    <section class="grid">
-      ${categoryCard('🧔','Random His',"randomizeChallenge('his')")}
-      ${categoryCard('👑','Random Hers',"randomizeChallenge('hers')")}
-      ${categoryCard('🎲','Random Both',"randomizeChallenge('both')")}
+  currentView={dice:true};
+  const leftCount = (state.dice?.left || []).length;
+  const rightCount = (state.dice?.right || []).length;
+  app().innerHTML=`<main class="screen">${header('Dice Roller')}${backBtn()}
+    <section class="hero"><h2>🎲 Two Dice</h2><p>A simple editable dice roller. Roll both dice together and use the result however you like.</p></section>
+    <section class="dice-panel">
+      <div class="dice-wrap">
+        <div class="dice-cube" id="diceLeft">⚀</div>
+        <div class="dice-cube" id="diceRight">⚀</div>
+      </div>
+      <div id="diceResult" class="challenge-card dice-result"><h2>Ready to roll</h2><p class="small">Left die has ${leftCount} options. Right die has ${rightCount} options.</p></div>
+      <div class="button-row"><button class="primary" onclick="rollDice()">🎲 Roll Dice</button><button class="secondary" onclick="speakDiceResult()">🔊 Read Result</button></div>
     </section>
+    ${nav('play')}</main>`;
+}
+function rollDice(){
+  state.dice = state.dice || clone(DEFAULT_DATA.dice);
+  const left = (state.dice.left || []).filter(Boolean);
+  const right = (state.dice.right || []).filter(Boolean);
+  if(!left.length || !right.length){ toast('Add dice options in the hidden editor'); return; }
+  const faces=['⚀','⚁','⚂','⚃','⚄','⚅'];
+  let ticks=0;
+  const lEl=$('#diceLeft'), rEl=$('#diceRight'), resultEl=$('#diceResult');
+  resultEl.innerHTML='<h2>Rolling...</h2><p class="small">Let fate do its ridiculous little dance.</p>';
+  const spin=setInterval(()=>{
+    ticks++;
+    if(lEl) lEl.textContent=faces[Math.floor(Math.random()*faces.length)];
+    if(rEl) rEl.textContent=faces[Math.floor(Math.random()*faces.length)];
+    if(ticks>=12){
+      clearInterval(spin);
+      const li=Math.floor(Math.random()*left.length);
+      const ri=Math.floor(Math.random()*right.length);
+      const leftFace=faces[li % 6], rightFace=faces[ri % 6];
+      if(lEl) lEl.textContent=leftFace;
+      if(rEl) rEl.textContent=rightFace;
+      currentView={dice:true,left:left[li],right:right[ri],text:`${left[li]} — ${right[ri]}`};
+      state.randomizerHistory = state.randomizerHistory || [];
+      state.randomizerHistory.push({date:new Date().toISOString(), type:'dice', left:left[li], right:right[ri]});
+      save();
+      resultEl.innerHTML=`<h2>${escapeHtml(left[li])}</h2><p class="challenge-text">${escapeHtml(right[ri])}</p><div class="mini-row"><button class="mini" onclick="speakDiceResult()">🔊 Read</button><button class="mini" onclick="startRandomTimer()">⏱️ Random Timer</button><button class="mini" onclick="rollDice()">🎲 Roll Again</button></div><div id="timerBox" class="timer-box hidden"><div class="timer-time" id="timerTime">00:00</div><button class="secondary" onclick="stopTimer()">Stop Timer</button></div>`;
+      speakDiceResult();
+    }
+  },70);
+}
+function speakDiceResult(){
+  if(currentView?.dice && currentView?.text) speakText(currentView.text);
+  else speakText('Roll the dice.');
+}
+function showSideRandomizer(side='his'){
+  currentScreen='sideRandomizer';
+  const title = side==='his' ? `${state.players.his || 'His'} Randomizer` : `${state.players.hers || 'Hers'} Randomizer`;
+  const back = side==='his' ? 'showHis()' : 'showHers()';
+  app().innerHTML=`<main class="screen">${header(title)}${backBtn(back)}
+    <section class="hero"><h2>🎲 Random ${side==='his'?'His':'Hers'} Challenge</h2><p>This picks from that player's challenge lists only. It does not move the linear progress.</p></section>
+    <div class="button-row"><button class="primary" onclick="randomizeChallenge('${side}')">🎲 Pick Random</button></div>
     <div id="randomizerResult" class="stack"></div>
     ${nav('play')}</main>`;
 }
@@ -601,6 +655,7 @@ function showAdmin(){
   <section class="admin-list">
     ${card('📊','Likes & Dislikes','Hidden analytics','adminAnalytics()','wide')}
     ${card('✏️','Edit Challenges','Paste one challenge per line','adminEditChallenges()','wide')}
+    ${card('🎲','Edit Dice','Change the two dice options','adminEditDice()','wide')}
     ${card('📖','Edit Category Index','Change Hers category explanations','adminEditCategoryIndex()','wide')}
     ${card('📜','Edit Rules','One rule per line','adminEditRules()','wide')}
     ${card('⚡','Edit Power Ups','Name: description | cost | spoken text','adminEditPowerUps()','wide')}
@@ -694,6 +749,31 @@ function bulkEditChallenges(side,cat){
 }
 function saveBulkChallenges(side,cat){
   state.challenges[side][cat]=$('#bulkChallengeText').value.split('\n').map(x=>x.trim()).filter(Boolean); save(); toast('Bulk edit saved'); adminEditChallenges(`${side}:${cat}`);
+}
+
+function adminEditDice(){
+  state.dice = state.dice || clone(DEFAULT_DATA.dice);
+  app().innerHTML=`<main class="screen">${header('Edit dice')}<button class="ghost" onclick="showAdmin()">← Back to editor</button>
+    <section class="hero"><h2>🎲 Dice editor</h2><p>One option per line. The first box is die one, the second box is die two.</p></section>
+    <div class="form">
+      <label>Die One<textarea id="diceLeftEdit">${escapeHtml((state.dice.left||[]).join('\n'))}</textarea></label>
+      <label>Die Two<textarea id="diceRightEdit">${escapeHtml((state.dice.right||[]).join('\n'))}</textarea></label>
+      <button class="primary" onclick="saveDiceOptions()">Save Dice</button>
+      <button class="secondary" onclick="resetDiceOptions()">Reset Dice Defaults</button>
+    </div>
+  </main>`;
+}
+function saveDiceOptions(){
+  const left = $('#diceLeftEdit').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  const right = $('#diceRightEdit').value.split('\n').map(x=>x.trim()).filter(Boolean);
+  if(!left.length || !right.length){ toast('Each die needs at least one option'); return; }
+  state.dice = { left, right };
+  save(); toast('Dice saved'); showAdmin();
+}
+function resetDiceOptions(){
+  if(!confirm('Reset both dice to defaults?')) return;
+  state.dice = clone(DEFAULT_DATA.dice);
+  save(); toast('Dice reset'); adminEditDice();
 }
 
 function adminEditCategoryIndex(){
