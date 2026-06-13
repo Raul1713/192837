@@ -1,24 +1,9 @@
 /*
   Royal Pouch - GitHub Pages / PWA app
   EDITING TIP: Most starter content is in DEFAULT_DATA below.
-  You can edit challenges, rules, power ups and funishments in this file or inside the hidden editor.
+  You can edit challenges, rules and power ups in this file or inside the hidden editor.
 */
 const STORAGE_KEY = 'royalPouchSave_v1';
-
-// PWA install prompt support
-let deferredInstallPrompt = null;
-let canInstallPwa = false;
-window.addEventListener('beforeinstallprompt', (event) => {
-  event.preventDefault();
-  deferredInstallPrompt = event;
-  canInstallPwa = true;
-  updateInstallButton();
-});
-window.addEventListener('appinstalled', () => {
-  deferredInstallPrompt = null;
-  canInstallPwa = false;
-  updateInstallButton();
-});
 
 const DEFAULT_DATA = {
   players: { his: '', hers: '' },
@@ -32,7 +17,7 @@ const DEFAULT_DATA = {
     'Both players should agree boundaries before starting.',
     'Use Like or Dislike after every main challenge before moving on.',
     'Random challenges do not change linear progress.',
-    'Coins, power ups and funishments can be edited in the hidden editor.'
+    'Coins, power ups and challenges can be edited in the hidden editor.'
   ],
   categoryIndex: {
     hotWife: 'A confidence and attention path. This category is about feeling good, choosing the mood, and owning the spotlight.',
@@ -55,7 +40,7 @@ const DEFAULT_DATA = {
       hard: [
         'Complete a longer task without complaining.',
         'Hand over one power up to the other player.',
-        'Accept a funishment draw if you fail the timer.'
+        'Accept a randomizer draw if you fail the timer.'
       ],
       extraHard: [
         'Let the other player set the rules for the next round.',
@@ -91,7 +76,7 @@ const DEFAULT_DATA = {
   },
   powerUps: {
     his: [
-      'Shield: ignore one funishment|50|Shield activated. The next funishment may be ignored.',
+      'Shield: ignore one skipped turn penalty|50|Shield activated. The next skipped turn penalty may be ignored.',
       'Double Coins: next completed challenge pays double|100|Double Coins activated. The next completed challenge earns double coins.',
       'Second Chance: retry one failed timer|75|Second Chance activated. You may retry one failed timer.',
       'Skip Pass: skip one challenge without losing coins|80|Skip Pass activated. One challenge may be skipped safely.',
@@ -114,10 +99,7 @@ const DEFAULT_DATA = {
   },
   inventory: { his: [], hers: [] },
   activePowerUps: { his: [], hers: [] },
-  funishments: {
-    his: ['Lose 50 coins', 'Do one extra helpful task', 'Opponent chooses your next challenge'],
-    hers: ['Lose 50 coins', 'Opponent chooses a light challenge', 'Skip one power up use']
-  }
+  randomizerHistory: []
 };
 
 let state = load();
@@ -170,30 +152,8 @@ function header(sub=''){
 
 function init(){
   migrateDefaults();
-  if('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(()=>{});
-  }
+  if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
   if(!state.players.his || !state.players.hers) showNameScreen(); else showHome();
-}
-
-
-function installButtonMarkup(){
-  return `<button id="installAppBtn" class="install-app-btn" onclick="installApp()" hidden>📲 Install App</button>`;
-}
-function updateInstallButton(){
-  const btn = document.getElementById('installAppBtn');
-  if(btn) btn.hidden = !canInstallPwa;
-}
-async function installApp(){
-  if(!deferredInstallPrompt){
-    alert('Install is not ready yet. On Android Chrome, tap the three-dot menu and choose Install app or Add to Home screen.');
-    return;
-  }
-  deferredInstallPrompt.prompt();
-  await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-  canInstallPwa = false;
-  updateInstallButton();
 }
 
 function migrateDefaults(){
@@ -214,14 +174,13 @@ function migrateDefaults(){
 function showNameScreen(){
   currentScreen='names';
   app().innerHTML = `<main class="screen">
-    <div class="hero"><h2>Set the players</h2><p>Enter two names to personalise the dashboard, coins and challenge paths.</p>${installButtonMarkup()}</div>
+    <div class="hero"><h2>Set the players</h2><p>Enter two names to personalise the dashboard, coins and challenge paths.</p></div>
     <div class="form">
       <input class="input" id="hisName" placeholder="His name" value="${escapeHtml(state.players.his)}">
       <input class="input" id="hersName" placeholder="Her name" value="${escapeHtml(state.players.hers)}">
       <button class="primary" onclick="saveNames()">Start</button>
     </div>
   </main>`;
-  updateInstallButton();
 }
 function saveNames(){
   state.players.his = $('#hisName').value.trim() || 'His';
@@ -230,17 +189,16 @@ function saveNames(){
 function showHome(){
   currentScreen='home';
   app().innerHTML = `<main class="screen">${header('Home dashboard')}
-    <section class="hero"><h2>Tonight's dashboard</h2><p>${state.players.his}: ${state.coins.his} coins · ${state.players.hers}: ${state.coins.hers} coins</p>${installButtonMarkup()}</section>
+    <section class="hero"><h2>Tonight's dashboard</h2><p>${state.players.his}: ${state.coins.his} coins · ${state.players.hers}: ${state.coins.hers} coins</p></section>
     <section class="grid">
       ${card('📜','Rules','View rules','showRules()', 'wide')}
       ${card('🧔','His','4 Categories','showHis()')}
       ${card('👑','Hers','5 Categories','showHers()')}
       ${card('🪙','Coin Pouch','Balances and transactions','showCoins()')}
       ${card('⚡','Power Ups','Shop & inventory','showPowerUps()')}
-      ${card('📋','Funishments','Editable consequences','showFunishments()')}
+      ${card('🎲','Randomizer','Quick random challenge','showRandomizer()')}
       ${card('📈','Progress','Stats and challenge history','showProgress()')}
     </section>${nav('home')}</main>`;
-  updateInstallButton();
 }
 function card(icon,title,desc,onclick,extra=''){
   return `<button class="dash-card ${extra}" onclick="${onclick}"><div class="icon">${icon}</div><h3>${title}</h3>${desc ? `<p>${desc}</p>` : ''}</button>`;
@@ -585,8 +543,49 @@ function readPowerUp(tab,side,index){
   ensureInventory(); const list = tab==='shop' ? powerList(side) : (tab==='inventory' ? state.inventory[side].map(parsePowerUp) : state.activePowerUps[side].map(parsePowerUp));
   const pu=list[index]; if(pu) speakText(`${pu.name}. ${pu.description}. ${tab==='shop'?`Cost ${pu.cost} coins.`:''}`);
 }
-function showFunishments(){ listScreen('Funishments', state.funishments); }
-function listScreen(title,obj){ app().innerHTML=`<main class="screen">${header(title)}${backBtn()}<h3>${state.players.his}</h3><div class="stack">${obj.his.map(x=>`<div class="stat"><span>${escapeHtml(x)}</span></div>`).join('')}</div><h3>${state.players.hers}</h3><div class="stack">${obj.hers.map(x=>`<div class="stat"><span>${escapeHtml(x)}</span></div>`).join('')}</div>${nav()}</main>`; }
+function showRandomizer(){
+  currentScreen='randomizer';
+  app().innerHTML=`<main class="screen">${header('Randomizer')}${backBtn()}
+    <section class="hero"><h2>Quick random draw</h2><p>Pick a random challenge without changing the linear paths.</p></section>
+    <section class="grid">
+      ${categoryCard('🧔','Random His',"randomizeChallenge('his')")}
+      ${categoryCard('👑','Random Hers',"randomizeChallenge('hers')")}
+      ${categoryCard('🎲','Random Both',"randomizeChallenge('both')")}
+    </section>
+    <div id="randomizerResult" class="stack"></div>
+    ${nav('play')}</main>`;
+}
+function randomizeChallenge(which='both'){
+  const sides = which==='both' ? ['his','hers'] : [which];
+  const pool = [];
+  for(const side of sides){
+    for(const cat of Object.keys(state.challenges[side] || {})){
+      if(cat==='secret') continue;
+      if(side==='hers' && !state.secretDoneToday) continue;
+      const list = state.challenges[side][cat] || [];
+      list.forEach((text,index)=> pool.push({side,cat,index,text,reward:REWARDS[cat]||50}));
+    }
+  }
+  if(!pool.length){ toast('No random challenges available yet'); return; }
+  const pick = pool[Math.floor(Math.random()*pool.length)];
+  currentView = {...pick, randomizer:true};
+  const sideLabel = pick.side==='his' ? (state.players.his || 'His') : (state.players.hers || 'Hers');
+  const catLabel = LABELS[pick.side]?.[pick.cat] || pick.cat;
+  $('#randomizerResult').innerHTML = `<section class="challenge-card"><div class="challenge-meta"><span class="tag">${escapeHtml(sideLabel)}</span><span class="tag">${escapeHtml(catLabel)}</span><span class="tag">Reward ${pick.reward} coins</span></div><h2>🎲 Random Challenge</h2><p class="challenge-text">${escapeHtml(pick.text)}</p><div class="mini-row"><button class="mini" onclick="speakChallenge()">🔊 Read</button><button class="mini" onclick="startRandomTimer()">⏱️ Random Timer</button><button class="mini" onclick="randomizeChallenge('${which}')">🎲 Reroll</button></div><div id="timerBox" class="timer-box hidden"><div class="timer-time" id="timerTime">00:00</div><button class="secondary" onclick="stopTimer()">Stop Timer</button></div><div class="button-row"><button class="primary" onclick="completeRandomizedChallenge()">✅ Complete & Award Coins</button></div></section>`;
+  scheduleAutoSpeak();
+}
+function completeRandomizedChallenge(){
+  const pick = currentView;
+  if(!pick || !pick.randomizer){ toast('Draw a challenge first'); return; }
+  state.coins[pick.side] += pick.reward;
+  state.randomizerHistory = state.randomizerHistory || [];
+  const entry = {date:new Date().toISOString(), side:pick.side, category:pick.cat, text:pick.text, coins:pick.reward};
+  state.randomizerHistory.push(entry);
+  state.history.push({ date:entry.date, side:pick.side, category:'randomizer', result:`Random ${pick.cat} completed`, coins:pick.reward });
+  save();
+  toast(`${pick.reward} coins awarded`);
+  showRandomizer();
+}
 function showProgress(){
   const likes = state.feedback.filter(f=>f.feedback==='like').length, dislikes = state.feedback.filter(f=>f.feedback==='dislike').length;
   app().innerHTML=`<main class="screen">${header('Progress')}${backBtn()}<div class="stack"><div class="stat"><b>Total Likes</b><span>${likes}</span></div><div class="stat"><b>Total Dislikes</b><span>${dislikes}</span></div><div class="stat"><b>Completed/Skipped</b><span>${state.feedback.length}</span></div><div class="challenge-card"><h2>Recent history</h2>${state.history.slice(-8).reverse().map(h=>`<p class="small">${new Date(h.date).toLocaleString()} · ${h.side} · ${h.category} · ${h.result}</p>`).join('') || '<p class="small">No history yet.</p>'}</div></div>${nav('progress')}</main>`;

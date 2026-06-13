@@ -223,18 +223,3 @@ select option{background:#0d0d10!important;color:#f4f4f5!important;}
   color: var(--text) !important;
 }
 /* Brand logo stays Crowned Ace black/silver; feature emojis stay coloured for easier navigation. */
-
-/* PWA install button */
-.install-app-btn{
-  margin-top: 14px;
-  border: 1px solid rgba(238,238,238,.45);
-  background: linear-gradient(135deg, #e8e8e8, #8d8d8d);
-  color: #070707;
-  border-radius: 16px;
-  padding: 12px 18px;
-  font-weight: 900;
-  letter-spacing: .04em;
-  box-shadow: 0 10px 24px rgba(0,0,0,.35);
-}
-.install-app-btn[hidden]{ display:none !important; }
-.install-app-btn:active{ transform: translateY(1px); }
